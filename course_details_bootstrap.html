@@ -11,14 +11,27 @@
     <h2>Lessons</h2>
 
     {% for lesson in course.lesson_set.all %}
+
     <div class="card mb-3">
+
         <div class="card-body">
-            <h5 class="card-title">{{ lesson.title }}</h5>
-            <p class="card-text">{{ lesson.content }}</p>
+
+            <h5 class="card-title">
+                {{ lesson.title }}
+            </h5>
+
+            <p class="card-text">
+                {{ lesson.content }}
+            </p>
+
         </div>
+
     </div>
+
     {% empty %}
+
     <p>No lessons available.</p>
+
     {% endfor %}
 
 </div>
