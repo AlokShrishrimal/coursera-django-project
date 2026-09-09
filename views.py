@@ -5,9 +5,10 @@ def submit(request, course_id):
         pk=course_id
     )
 
-    enrollment = get_object_or_404(
-        Enrollment,
-        user=request.user,
+    user = request.user
+
+    enrollment = Enrollment.objects.get(
+        user=user,
         course=course
     )
 
@@ -15,33 +16,35 @@ def submit(request, course_id):
         enrollment=enrollment
     )
 
-    selected_choices = []
+    choices = extract_answers(request)
+
+    submission.choices.set(choices)
+
+    submission_id = submission.id
+
+    return HttpResponseRedirect(
+        reverse(
+            viewname='onlinecourse:exam_result',
+            args=(course_id, submission_id)
+        )
+    )
+
+
+def extract_answers(request):
+
+    submitted_answers = []
 
     for key in request.POST:
 
         if key.startswith('choice'):
 
-            choice_id = request.POST[key]
+            value = request.POST[key]
 
-            choice = Choice.objects.get(
-                id=choice_id
-            )
+            choice_id = int(value)
 
-            selected_choices.append(choice)
+            submitted_answers.append(choice_id)
 
-    submission.choices.set(
-        selected_choices
-    )
-
-    return HttpResponseRedirect(
-        reverse(
-            'onlinecourse:show_exam_result',
-            args=(
-                course_id,
-                submission.id
-            )
-        )
-    )
+    return submitted_answers
 
 
 def show_exam_result(
@@ -50,40 +53,42 @@ def show_exam_result(
     submission_id
 ):
 
+    context = {}
+
     course = get_object_or_404(
         Course,
         pk=course_id
     )
 
-    submission = get_object_or_404(
-        Submission,
-        pk=submission_id
+    submission = Submission.objects.get(
+        id=submission_id
     )
 
-    score = 0
+    choices = submission.choices.all()
 
-    for question in course.question_set.all():
+    total_score = 0
 
-        correct_choices = set(
-            question.choice_set.filter(
-                is_correct=True
-            )
+    questions = course.question_set.all()
+
+    for question in questions:
+
+        correct_choices = question.choice_set.filter(
+            is_correct=True
         )
 
-        selected_choices = set(
-            submission.choices.filter(
-                question=question
-            )
+        selected_choices = choices.filter(
+            question=question
         )
 
-        if correct_choices == selected_choices:
-            score += question.grade
+        if set(correct_choices) == set(selected_choices):
 
-    context = {
-        'course': course,
-        'submission': submission,
-        'score': score
-    }
+            total_score += question.grade
+
+    context['course'] = course
+
+    context['grade'] = total_score
+
+    context['choices'] = choices
 
     return render(
         request,
